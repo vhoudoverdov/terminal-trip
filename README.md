@@ -92,12 +92,12 @@ While `terminal-trip` is running, use your keyboard to switch visual patterns, c
 4. **`[4]` Plasma & Fire**: Four-wave sine interference plasma with contour bands combined with a classic demoscene cellular fire buffer pumped by the frequency spectrum and bass beats.
 
 ### Color Palettes (`P`)
-1. **Geiss Fire** *(Indigo $\rightarrow$ Magenta $\rightarrow$ Electric Orange $\rightarrow$ White-Hot Yellow)*
-2. **WMP Cobalt** *(Midnight Blue $\rightarrow$ Electric Cyan $\rightarrow$ Violet $\rightarrow$ Hot Pink)*
-3. **Acid Matrix** *(Deep Emerald $\rightarrow$ Neon Lime $\rightarrow$ Cyan)*
-4. **Neon Sunset** *(Crimson $\rightarrow$ Tangerine $\rightarrow$ Gold $\rightarrow$ Deep Violet)*
-5. **Thermal Cosine** *(Continuous Inigo Quilez periodic cosine rainbow)*
-6. **Infrared** *(Dark Red $\rightarrow$ Lava Orange $\rightarrow$ Incandescent White)*
+1. **Geiss Fire**
+2. **WMP Cobalt**
+3. **Acid Matrix**
+4. **Neon Sunset**
+5. **Thermal Cosine**
+6. **Infrared**
 
 ---
 
