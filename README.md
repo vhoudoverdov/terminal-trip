@@ -2,8 +2,11 @@
 
 A retro 90s/2000s music visualizer that runs right inside your terminal—inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, and classic **demoscene wormholes and plasmas**.
 
->Looking for the under-the-hood DSP formulas, feedback warp math, lookup-table equations, and ANSI rendering architecture? See **[ARCHITECTURE.md](ARCHITECTURE.md)**.
-
+![Geiss Vortex Visualization](gif/geiss-vortex.gif)
+![Lux Wormhole Visualization](gif/lux-wormhole.gif)
+![Plasma Fire Visualization](gif/plasma-fire.gif)
+![Bars & Waves Visualization](gif/bars-waves.gif)
+![Color Cycling](gif/color-cycling.gif)
 ---
 
 ## 1. Download & Run
