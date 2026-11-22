@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=77.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terminal-trip"
+version = "0.1.0"
+description = "90s/2000s demoscene, Winamp (Geiss/MilkDrop), and WMP-inspired music visualizer for the terminal"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["visualizer", "audio", "terminal", "demoscene", "winamp", "milkdrop", "geiss", "ansi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "miniaudio>=1.59",
+    'PyAudioWPatch>=0.2.12; sys_platform == "win32"',
+]
+
+[project.optional-dependencies]
+loopback-alt = ["soundcard>=0.4.2"]
+
+[project.scripts]
+terminal-trip = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "audio", "palettes", "renderer"]
+packages = ["effects"]

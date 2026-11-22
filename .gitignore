@@ -1,0 +1,23 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python bytecode & packaging
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Saved screenshots & benchmark snapshots
+terminal-trip-*.png
+shots/
+snapshots/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
