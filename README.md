@@ -3,6 +3,8 @@
 A retro 90s/2000s music visualizer that runs inside your terminal.
 Inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, and classic music visualizations from previous decades.
 
+To understand the implementation details (including the mathematical background for the animations and the theory behind how the tool works) see [ARCHITECUTRE.md](ARCHITECUTRE.md)
+
 # Visualization Gallery
 ![Geiss Vortex Visualization](gif/geiss-vortex.gif)
 ![Lux Wormhole Visualization](gif/lux-wormhole.gif)
