@@ -1,7 +1,9 @@
 # terminal-trip
 
-A retro 90s/2000s music visualizer that runs right inside your terminal—inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, and classic **demoscene wormholes and plasmas**.
+A retro 90s/2000s music visualizer that runs inside your terminal.
+Inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, and classic music visualizations from previous decades.
 
+## 1. Visualization Gallery
 ![Geiss Vortex Visualization](gif/geiss-vortex.gif)
 ![Lux Wormhole Visualization](gif/lux-wormhole.gif)
 ![Plasma Fire Visualization](gif/plasma-fire.gif)
