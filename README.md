@@ -5,6 +5,8 @@ Inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Wav
 
 To understand the implementation details (including the mathematical background for the animations and the theory behind how the tool works) see [ARCHITECTURE.md](ARCHITECTURE.md)
 
+Created with Google Antigravity.
+
 # Visualization Gallery
 ![Geiss Vortex Visualization](gif/geiss-vortex.gif)
 ![Lux Wormhole Visualization](gif/lux-wormhole.gif)
