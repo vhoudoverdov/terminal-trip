@@ -1,6 +1,6 @@
 # terminal-trip
 
-A retro 90s/2000s music visualizer that runs at 60 FPS right inside your terminal with **2×2 supersampling anti-aliasing (SSAA)** and 24-bit ANSI half-blocks—inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, **Chladni cymatic reaction-diffusion**, **80s/90s Synthwave 3D horizons**, **3D harmonic attractors**, and **demoscene wormholes, plasmas, and Julia fractals**.
+A retro 90s/2000s music visualizer that runs at 60 FPS right inside your terminal with **2×2 supersampling anti-aliasing (SSAA)** and 24-bit ANSI half-blocks—inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience** and other visualization styles from previous decades.
 
 To understand the implementation details (including the mathematical background for the animations and the theory behind how the tool works) see [ARCHITECTURE.md](ARCHITECTURE.md)
 
