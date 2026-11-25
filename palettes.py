@@ -45,9 +45,9 @@ PALETTES = [
                                 (255, 255, 160), (255, 170, 0), (255, 60, 0)])),
 ]
 
-# Brightness ramp: index 0 is black, low indices fade in, top end goes white-hot.
-_RAMP = (np.clip(_I / 96.0, 0.0, 1.0) ** 1.4)[:, None]
-_WHITE = (np.clip((_I - 190) / 65.0, 0.0, 1.0) ** 2 * 0.55)[:, None]
+# Brightness ramp: index 0 is black, low indices lift smoothly for deep decay trails, top end goes white-hot.
+_RAMP = (np.clip(_I / 64.0, 0.0, 1.0) ** 1.2)[:, None]
+_WHITE = (np.clip((_I - 195) / 60.0, 0.0, 1.0) ** 1.8 * 0.55)[:, None]
 
 
 class PaletteManager:

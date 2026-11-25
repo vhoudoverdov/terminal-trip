@@ -24,10 +24,11 @@ flowchart LR
     end
 
     subgraph Engine["Retro Indexed Software Renderer (effects/)"]
-        Beat --> Preset["Active Visual Preset (1-4)"]
-        FBPrev["Previous Framebuffer (H x W float32)"] -->|"Bilinear Warp / Decay"| Preset
-        Preset --> FB["Indexed Framebuffer (H x W uint8, 0..255)"]
-        FB -->|"Feedback State"| FBPrev
+        Beat --> Preset["Active Visual Preset (1-8, 2x2 SSAA Canvas)"]
+        FBPrev["Previous Framebuffer (2H x 2W float32)"] -->|"Bilinear Warp / Isotropic Blur"| Preset
+        Preset --> SSAA["2x2 Box-Filter Downsampler (H x W)"]
+        Preset -->|"Feedback State"| FBPrev
+        SSAA --> FB["Indexed Framebuffer (H x W uint8, 0..255)"]
         Beat -->|"Phase Shift + Beat Jump"| LUT["256-Color RGB Palette LUT (256 x 3 uint8)"]
     end
 
@@ -202,8 +203,49 @@ Combines a 4-wave interference plasma with the classic 90s demoscene cellular fi
      $$P_{\text{ember}}(x) = \big(0.2 + 0.6\sqrt{B(x)}\big)\cdot(0.6 + 0.6E_{\text{bass}})$$
    - **Upward Convection & Cooling**: On each step, heat propagates upward via a 4-neighbor stencil (left, center, right from row $y+1$, plus center from row $y+2$) minus a bass-modulated cooling term:
      $$F(y, x) \leftarrow \max\!\left(0,\; \frac{F(y+1, x-1) + F(y+1, x) + F(y+1, x+1) + F(y+2, x)}{4} - \text{cool}\right)$$
-   - **Composite Blend**: Flames attenuate the plasma behind them and add incandescent heat on top:
-     $$I_{\text{out}} = \min\!\left(255,\; I_{\text{plasma}}\cdot\left(1 - \operatorname{clip}\!\left(\frac{F}{140}, 0, 0.85\right)\right) + 1.1\,F\right)$$
+   - **Composite Blend**: Flames attenuate the plasma behind them and add incandescent heat + flame-edge gradient relief $|\nabla F|$ on top:
+     $$I_{\text{out}} = \min\!\left(255,\; I_{\text{plasma}}\cdot\left(1 - \operatorname{clip}\!\left(\frac{F}{135}, 0, 0.88\right)\right) + 1.05\,F + 0.32\,|\nabla F|\right)$$
+
+---
+
+### Preset 5: Audio-Reactive Cymatic Reaction-Diffusion (`effects/cymatic_rd.py`)
+
+A direct crossover with **terminal-soup** that couples a 9-point isotropic Gray-Scott reaction-diffusion system ($U + 2V \to 3V$) to **Chladni acoustic nodal standing waves**:
+
+1. **Chladni Resonant Plate Equation**:
+   $$C(x, y) = \cos(n\pi x)\cos(m\pi y) - \cos(m\pi x)\cos(n\pi y), \qquad N_{\text{nodal}}(x, y) = \exp\!\big(-(2.8\,C(x, y))^2\big)$$
+   where mode numbers $(n, m)$ morph smoothly on beat transients and flex with mid and treble energy.
+2. **Acoustic Morphogen Forcing & Membrane-Relief Shading**:
+   The local feed rate $F(x, y) = 0.042 + 0.016 E_{\text{bass}} + 0.008 N_{\text{nodal}}(x, y)$ and beat nucleation follow the nodal lines, while the output combines morphogen ratio $V / (U + V)$ with edge-gradient relief $|\nabla V|$.
+
+---
+
+### Preset 6: Synthwave 3D Horizon & Audio Canyon (`effects/synthwave_grid.py`)
+
+Perspective-projected 3D terrain canyon ($Z = 0.85 / \max(y - y_{\text{horizon}}, 0.045)$) with:
+- **Segmented Scanline Sun**: Radial disc modulated by horizontal scanline cutouts $\sin\big(36(Y - y_{\odot}) - 2.5t\big)$ and atmospheric horizon bloom.
+- **Spectrum Mountain Ridge**: Horizon silhouette displaced by the 48 FFT bars with glowing neon rim highlights.
+- **Audio-Warped 3D Canyon Grid**: Anti-aliased longitudinal and depth grid lines warped laterally by mid frequencies and vertically by the live waveform.
+
+---
+
+### Preset 7: 3D Harmonic Attractor & Torus-Knot Phase Scope (`effects/attractor_scope.py`)
+
+Generates a 3D parametric $(p, q)$ torus-knot ribbon modulated by the live waveform $w(\phi)$:
+$$\begin{aligned}
+x_3(\phi) &= \big(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\big)\cos(p\phi) \\
+y_3(\phi) &= \big(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\big)\sin(p\phi) \\
+z_3(\phi) &= r_{\text{tube}}(\phi)\sin(q\phi) + 0.15 E_{\text{treble}}\sin(2\phi - 1.8t)
+\end{aligned}$$
+rotated through $SO(3)$ via Euler angles $(\alpha_x, \alpha_y, \alpha_z)$ driven by bass, mid, and treble, perspective-projected with depth-cue shading, and plotted via sub-pixel bilinear splatting over an isotropically diffused swirl buffer.
+
+---
+
+### Preset 8: Electric Julia Fractal Kaleidoscope (`effects/julia_fractal.py`)
+
+Iterates the complex quadratic map $z_{k+1} = z_k^2 + c(t)$ for 14 unrolled vectorized steps, where $c(t) = -0.745 + 0.085\cos\Phi + i(0.186 + 0.085\sin(0.83\Phi))$ orbits the Mandelbrot cardioid perimeter:
+- **Smooth Escape-Potential Coloring**: $\nu = k + 1 - \frac{1}{2}\log_2(\log_2 |z|^2)$ eliminates discrete contour stepping.
+- **Pickover Interior Orbital Trap**: Tracks $d_{\min} = \min_k \min(|z_r| + |z_i|, ||z|^2 - 0.5|)$ so interior chambers glow in sync with beat pulses.
 
 ---
 
