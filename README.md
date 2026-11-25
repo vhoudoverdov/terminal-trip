@@ -7,13 +7,13 @@ To understand the implementation details (including the mathematical background 
 Created with Google Antigravity.
 
 # Visualization Gallery
-![Geiss Vortex Visualization](gif/geiss-vortex.gif)
-![Plasma Fire Visualization](gif/plasma-fire.gif)
-![Bars & Waves Visualization](gif/bars-waves.gif)
+![Geiss Vortex](gif/geiss-vortex.gif)
+![Plasma Fire](gif/plasma-fire.gif)
+![Bars & Waves](gif/bars-waves.gif)
 ![Cymatic Lab](gif/cymatic-lab.gif)
 ![Julia Fractal](gif/julia-fractal.gif)
-![Color Cycling](gif/color-cycling.gif)
-![Lux Wormhole Visualization](gif/lux-wormhole.gif)
+![3D Attractor](gif/3d-attractor.gif)
+![Lux Wormhole](gif/lux-wormhole.gif)
 
 ---
 
