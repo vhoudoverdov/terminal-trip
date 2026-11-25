@@ -1,4 +1,5 @@
-"""Shared helpers for effects: coordinate grids, bilinear feedback sampling, plotting."""
+"""Shared helpers for effects: coordinate grids, bilinear feedback sampling,
+sub-pixel anti-aliased plotting, and isotropic spatial stencils."""
 from __future__ import annotations
 
 import numpy as np
@@ -54,19 +55,66 @@ def resample(a: np.ndarray, n: int) -> np.ndarray:
     return np.interp(np.linspace(0, len(a) - 1, n), np.arange(len(a)), a).astype(np.float32)
 
 
+def blur3x3(X: np.ndarray, mix: float = 0.25) -> np.ndarray:
+    """Isotropic 9-point spatial smoothing kernel (cardinal 1/6, diagonal 1/12)."""
+    n = np.roll(X, -1, axis=0)
+    s = np.roll(X, 1, axis=0)
+    e = np.roll(X, -1, axis=1)
+    w = np.roll(X, 1, axis=1)
+    ne = np.roll(n, -1, axis=1)
+    nw = np.roll(n, 1, axis=1)
+    se = np.roll(s, -1, axis=1)
+    sw = np.roll(s, 1, axis=1)
+    neigh = (n + s + e + w) * (1.0 / 6.0) + (ne + nw + se + sw) * (1.0 / 12.0)
+    return (1.0 - mix) * X + mix * neigh
+
+
+def laplacian_9pt(X: np.ndarray) -> np.ndarray:
+    """9-point rotationally isotropic discrete Patra-Karttunen Laplacian."""
+    n = np.roll(X, -1, axis=0)
+    s = np.roll(X, 1, axis=0)
+    e = np.roll(X, -1, axis=1)
+    w = np.roll(X, 1, axis=1)
+    ne = np.roll(n, -1, axis=1)
+    nw = np.roll(n, 1, axis=1)
+    se = np.roll(s, -1, axis=1)
+    sw = np.roll(s, 1, axis=1)
+    return (2.0 / 3.0) * (n + s + e + w) + (1.0 / 6.0) * (ne + nw + se + sw) - (10.0 / 3.0) * X
+
+
 def plot(fb: np.ndarray, x, y, val, aspect: float, glow: float = 0.0):
-    """Max-blend points given in square-pixel coordinates into ``fb``."""
+    """Sub-pixel bilinear splatting with isotropic 9-point Gaussian glow."""
     h, w = fb.shape
-    c = np.rint((np.asarray(x) / aspect + 1) * 0.5 * (w - 1)).astype(np.int32)
-    r = np.rint((np.asarray(y) + 1) * 0.5 * (h - 1)).astype(np.int32)
-    val = np.broadcast_to(np.asarray(val, np.float32), c.shape)
+    cf = (np.asarray(x, dtype=np.float32) / aspect + 1.0) * 0.5 * (w - 1)
+    rf = (np.asarray(y, dtype=np.float32) + 1.0) * 0.5 * (h - 1)
+    val = np.broadcast_to(np.asarray(val, np.float32), cf.shape)
+
+    c0 = np.floor(cf).astype(np.int32)
+    r0 = np.floor(rf).astype(np.int32)
+    fc = cf - c0
+    fr = rf - r0
 
     def put(rr, cc, vv):
         m = (rr >= 0) & (rr < h) & (cc >= 0) & (cc < w)
-        np.maximum.at(fb, (rr[m], cc[m]), vv[m])
+        if np.any(m):
+            np.maximum.at(fb, (rr[m], cc[m]), vv[m])
 
-    put(r, c, val)
+    # Bilinear sub-pixel core splat (boosted slightly so fractional centers stay crisp)
+    w00 = (1.0 - fr) * (1.0 - fc)
+    w01 = (1.0 - fr) * fc
+    w10 = fr * (1.0 - fc)
+    w11 = fr * fc
+    put(r0, c0, val * np.sqrt(w00))
+    put(r0, c0 + 1, val * np.sqrt(w01))
+    put(r0 + 1, c0, val * np.sqrt(w10))
+    put(r0 + 1, c0 + 1, val * np.sqrt(w11))
+
     if glow > 0:
-        g = val * glow
+        rc = np.rint(rf).astype(np.int32)
+        cc = np.rint(cf).astype(np.int32)
+        g_card = val * (glow * 0.85)
+        g_diag = val * (glow * 0.55)
         for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            put(r + dr, c + dc, g)
+            put(rc + dr, cc + dc, g_card)
+        for dr, dc in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            put(rc + dr, cc + dc, g_diag)

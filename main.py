@@ -22,13 +22,14 @@ from renderer import Presenter, Terminal, save_png
 HELP = [
     "TERMINAL-TRIP  hotkeys",
     "",
-    "1-4 / \u2190 \u2192   switch preset",
+    "1-8 / \u2190 \u2192   switch visual preset",
     "Space       auto-cycle presets",
-    "P           next palette",
+    "P           next color palette",
     "A           next audio source",
-    "+ / -       sensitivity",
+    "+ / -       audio sensitivity",
+    "V           toggle 2x2 supersampling (hi-res AA)",
     "D           color detail (256/128/64)",
-    "H           toggle HUD",
+    "H           toggle bottom HUD",
     "S           save PNG screenshot",
     "?           toggle this help",
     "Q / Esc     quit",
@@ -54,6 +55,7 @@ class App:
         self.prev, self.trans_t = None, 0.0
         self.pal = PaletteManager(args.palette - 1)
         self.presenter = Presenter(shift=args.detail)
+        self.supersample = not getattr(args, "no_ssaa", False)
         self.auto = args.auto
         self.last_switch = 0.0
         self.hud = not args.no_hud
@@ -110,8 +112,11 @@ class App:
         self.t = t
         f = self.analyzer.process(self.src.read(self.analyzer.n), dt)
         self.feats = f
+        scale = 2 if self.supersample else 1
+        sw, sh = w * scale, h * scale
+
         eff = self.effects[self.cur]
-        eff.ensure(w, h)
+        eff.ensure(sw, sh)
         out = eff.render(f, t, dt)
         if self.prev is not None:
             a = (t - self.trans_t) / TRANSITION
@@ -119,8 +124,11 @@ class App:
                 self.prev = None
             else:
                 pe = self.effects[self.prev]
-                pe.ensure(w, h)
+                pe.ensure(sw, sh)
                 out = pe.render(f, t, dt) * (1 - a) + out * a
+        if scale == 2:
+            out = out.reshape(h, 2, w, 2).mean(axis=(1, 3))
+
         if self.auto and t - self.last_switch > AUTO_CYCLE and (f.beat or t - self.last_switch > AUTO_CYCLE + 4):
             self.select(self.cur + 1, t)
             self.pal.next()
@@ -133,8 +141,10 @@ class App:
     def key(self, k, t):
         if k in ("q", "Q", "\x1b", "\x03"):
             return False
-        if k in "1234" and len(k) == 1:
-            self.select(int(k) - 1, t)
+        if k in "123456789" and len(k) == 1:
+            idx = int(k) - 1
+            if idx < len(self.effects):
+                self.select(idx, t)
         elif k == "RIGHT":
             self.select(self.cur + 1, t)
         elif k == "LEFT":
@@ -154,6 +164,9 @@ class App:
         elif k in ("-", "_"):
             self.gain = self.analyzer.gain = max(0.25, self.analyzer.gain / 1.25)
             self.say(f"sensitivity {self.analyzer.gain:.2f}")
+        elif k in ("v", "V"):
+            self.supersample = not self.supersample
+            self.say(f"2x2 supersampling AA: {'on' if self.supersample else 'off'}")
         elif k in ("d", "D"):
             self.presenter.shift = (self.presenter.shift + 1) % 3
             self.say(f"color detail: {256 >> self.presenter.shift} levels")
@@ -180,13 +193,14 @@ class App:
             bar = " \u2502 "
             heart = " \u2665" if f.pulse > 0.5 else "  "
             auto = bar + "AUTO" if self.auto else ""
+            ssaa = " [2xAA]" if self.supersample else ""
             if time.perf_counter() < self.toast_until:
                 extra = self.toast
             else:
                 extra = f"B{vu(f.bass)} M{vu(f.mid)} T{vu(f.treble)}{heart}"
             safe_label = sanitize_label(self.src.label, 32)
             text = (f" TERMINAL-TRIP{bar}[{self.cur + 1}] {self.effects[self.cur].name}{bar}"
-                    f"{self.pal.name}{bar}{safe_label}{bar}{self.fps:4.1f} fps"
+                    f"{self.pal.name}{ssaa}{bar}{safe_label}{bar}{self.fps:4.1f} fps"
                     f"{auto}{bar}{extra}{bar}? help")
             s.append(f"\x1b[{rows};1H\x1b[0m\x1b[38;2;235;235;235;48;2;10;10;24m"
                      + text[:cols].ljust(cols))
@@ -242,7 +256,8 @@ def bench(args):
     if args.snapshot:
         os.makedirs(args.snapshot, exist_ok=True)
     dt = 1.0 / 60
-    print(f"canvas {w}x{h} px ({cols}x{rows} cells), {args.bench} frames per preset")
+    ssaa_str = "2x2 SSAA" if app.supersample else "1x1 native"
+    print(f"canvas {w}x{h} px ({cols}x{rows} cells, {ssaa_str}), {args.bench} frames per preset")
     for i, eff in enumerate(app.effects):
         app.cur, app.prev = i, None
         tr = tc = 0.0
@@ -284,11 +299,13 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(prog="terminal-trip", description="Retro terminal music visualizer")
     p.add_argument("--file", help="audio file to play and visualize (wav; mp3/flac/ogg need miniaudio)")
     p.add_argument("--synth", action="store_true", help="start with the built-in demo synth")
-    p.add_argument("--preset", type=int, default=1, help="starting preset 1-4")
+    p.add_argument("--preset", type=int, default=1, help="starting preset 1-8")
     p.add_argument("--palette", type=int, default=1, help="starting palette 1-6")
     p.add_argument("--fps", type=_parse_fps, default=60.0)
-    p.add_argument("--detail", type=int, default=1, choices=(0, 1, 2),
+    p.add_argument("--detail", type=int, default=0, choices=(0, 1, 2),
                    help="drop N low bits of color index (0=256 levels, 1=128, 2=64)")
+    p.add_argument("--no-ssaa", action="store_true",
+                   help="start with 2x2 supersampling anti-aliasing disabled (1:1 pixel grid)")
     p.add_argument("--auto", action="store_true", help="start with auto-cycling presets")
     p.add_argument("--no-hud", action="store_true")
     p.add_argument("--duration", type=float, default=0, help="exit after N seconds")
