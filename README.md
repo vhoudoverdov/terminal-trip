@@ -8,10 +8,14 @@ Created with Google Antigravity.
 
 # Visualization Gallery
 ![Geiss Vortex Visualization](gif/geiss-vortex.gif)
-![Lux Wormhole Visualization](gif/lux-wormhole.gif)
 ![Plasma Fire Visualization](gif/plasma-fire.gif)
 ![Bars & Waves Visualization](gif/bars-waves.gif)
+![Cymatic Lab](gif/cymatic-lab.gif)
+![Julia Fractal](gif/julia-fractal.gif)
 ![Color Cycling](gif/color-cycling.gif)
+![Lux Wormhole Visualization](gif/lux-wormhole.gif)
+![Color Cycling](gif/color-cycling.gif)
+
 ---
 
 ## 1. Download & Run
