@@ -2,8 +2,16 @@
 
 A retro 90s/2000s music visualizer that runs at 60 FPS right inside your terminal with **2×2 supersampling anti-aliasing (SSAA)** and 24-bit ANSI half-blocks—inspired by Winamp's **Geiss / MilkDrop**, Windows Media Player's **Bars and Waves / Ambience**, **Chladni cymatic reaction-diffusion**, **80s/90s Synthwave 3D horizons**, **3D harmonic attractors**, and **demoscene wormholes, plasmas, and Julia fractals**.
 
->Looking for the under-the-hood DSP formulas, feedback warp math, lookup-table equations, and ANSI rendering architecture? See **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+To understand the implementation details (including the mathematical background for the animations and the theory behind how the tool works) see [ARCHITECTURE.md](ARCHITECTURE.md)
 
+Created with Google Antigravity.
+
+# Visualization Gallery
+![Geiss Vortex Visualization](gif/geiss-vortex.gif)
+![Lux Wormhole Visualization](gif/lux-wormhole.gif)
+![Plasma Fire Visualization](gif/plasma-fire.gif)
+![Bars & Waves Visualization](gif/bars-waves.gif)
+![Color Cycling](gif/color-cycling.gif)
 ---
 
 ## 1. Download & Run
@@ -90,12 +98,12 @@ While `terminal-trip` is running, use your keyboard to switch visual patterns, c
 8. **`[8]` Julia Fractal**: Real-time 60 FPS audio-reactive Julia set ($z_{n+1} = z_n^2 + c(t)$) orbiting the Mandelbrot cardioid perimeter with smooth fractional escape-potential coloring, Pickover orbital-trap interior glow, and beat-triggered kaleidoscope folding.
 
 ### Color Palettes (`P`)
-1. **Geiss Fire** *(Indigo $\rightarrow$ Magenta $\rightarrow$ Electric Orange $\rightarrow$ White-Hot Yellow)*
-2. **WMP Cobalt** *(Midnight Blue $\rightarrow$ Electric Cyan $\rightarrow$ Violet $\rightarrow$ Hot Pink)*
-3. **Acid Matrix** *(Deep Emerald $\rightarrow$ Neon Lime $\rightarrow$ Cyan)*
-4. **Neon Sunset** *(Crimson $\rightarrow$ Tangerine $\rightarrow$ Gold $\rightarrow$ Deep Violet)*
-5. **Thermal Cosine** *(Continuous Inigo Quilez periodic cosine rainbow)*
-6. **Infrared** *(Dark Red $\rightarrow$ Lava Orange $\rightarrow$ Incandescent White)*
+1. **Geiss Fire**
+2. **WMP Cobalt**
+3. **Acid Matrix**
+4. **Neon Sunset**
+5. **Thermal Cosine**
+6. **Infrared**
 
 ---
 
