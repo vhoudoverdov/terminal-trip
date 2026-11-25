@@ -14,7 +14,6 @@ Created with Google Antigravity.
 ![Julia Fractal](gif/julia-fractal.gif)
 ![Color Cycling](gif/color-cycling.gif)
 ![Lux Wormhole Visualization](gif/lux-wormhole.gif)
-![Color Cycling](gif/color-cycling.gif)
 
 ---
 
