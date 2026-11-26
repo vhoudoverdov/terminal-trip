@@ -92,14 +92,14 @@ While `terminal-trip` is running, use your keyboard to switch visual patterns, c
 ## 4. Built-in Visual Presets & Palettes
 
 ### Visual Presets (`1`–`8` or `←`/`→`)
-1. **`[1]` Geiss Vortex**: Polar feedback warp (zoom + swirl + petal modulation) with isotropic 9-point bloom diffusion, smooth shape morphing across harmonic rings, ribbons, and Lissajous waves, and sub-pixel anti-aliased beat sparks.
-2. **`[2]` LUT Wormhole**: Demoscene `1/r` tunnel with continuous sub-pixel Lissajous camera glide, $N$-fold kaleidoscope symmetry, distance-attenuated XOR/plasma wall textures, and smooth bell-curve audio spectrum rings.
-3. **`[3]` Bars & Waves**: Tribute to Windows Media Player—48 logarithmic spectrum bars with sub-pixel anti-aliased crests, specular rim shading, gravity peak-hold caps, rising diffused heat trails, and a continuous CRT phosphor Signed Distance Field (SDF) oscilloscope beam.
-4. **`[4]` Plasma & Fire**: Four-wave sine interference plasma with specular contour crests combined with a 9-point turbulent wind-curled fire buffer and flame-edge gradient relief (`|∇F|`).
-5. **`[5]` Cymatic Lab**: Crossover with `terminal-soup`—a 9-point isotropic Gray-Scott Reaction-Diffusion field coupled to Chladni standing-wave acoustic nodal plates ($\cos(n\pi x)\cos(m\pi y) - \cos(m\pi x)\cos(n\pi y)$) with membrane-relief shading.
-6. **`[6]` SynthHorizon**: Retro 80s/90s outrun 3D perspective-projected canyon grid with an audio-reactive spectrum mountain ridge, scanline-segmented synthwave sun, and twinkling treble starfield.
-7. **`[7]` 3D Attractor**: Rotating 3D volumetric $(p, q)$ harmonic torus-knot and strange-attractor phase ribbon modulated by the live waveform, projected with perspective depth-cue shading and swirling motion-blur trails.
-8. **`[8]` Julia Fractal**: Real-time 60 FPS audio-reactive Julia set ($z_{n+1} = z_n^2 + c(t)$) orbiting the Mandelbrot cardioid perimeter with smooth fractional escape-potential coloring, Pickover orbital-trap interior glow, and beat-triggered kaleidoscope folding.
+**`[1]` Geiss Vortex**: Polar feedback warp (zoom + swirl + petal modulation) with isotropic 9-point bloom diffusion, smooth shape morphing across harmonic rings, ribbons, and Lissajous waves, and sub-pixel anti-aliased beat sparks.
+**`[2]` LUT Wormhole**: Demoscene `1/r` tunnel with continuous sub-pixel Lissajous camera glide, $N$-fold kaleidoscope symmetry, distance-attenuated XOR/plasma wall textures, and smooth bell-curve audio spectrum rings.
+**`[3]` Bars & Waves**: Tribute to Windows Media Player—48 logarithmic spectrum bars with sub-pixel anti-aliased crests, specular rim shading, gravity peak-hold caps, rising diffused heat trails, and a continuous CRT phosphor Signed Distance Field (SDF) oscilloscope beam.
+**`[4]` Plasma & Fire**: Four-wave sine interference plasma with specular contour crests combined with a 9-point turbulent wind-curled fire buffer and flame-edge gradient relief (`|∇F|`).
+**`[5]` Cymatic Lab**: Crossover with `terminal-soup`—a 9-point isotropic Gray-Scott Reaction-Diffusion field coupled to Chladni standing-wave acoustic nodal plates ($\cos(n\pi x)\cos(m\pi y) - \cos(m\pi x)\cos(n\pi y)$) with membrane-relief shading.
+**`[6]` SynthHorizon**: Retro 80s/90s outrun 3D perspective-projected canyon grid with an audio-reactive spectrum mountain ridge, scanline-segmented synthwave sun, and twinkling treble starfield.
+**`[7]` 3D Attractor**: Rotating 3D volumetric $(p, q)$ harmonic torus-knot and strange-attractor phase ribbon modulated by the live waveform, projected with perspective depth-cue shading and swirling motion-blur trails.
+**`[8]` Julia Fractal**: Real-time 60 FPS audio-reactive Julia set ($z_{n+1} = z_n^2 + c(t)$) orbiting the Mandelbrot cardioid perimeter with smooth fractional escape-potential coloring, Pickover orbital-trap interior glow, and beat-triggered kaleidoscope folding.
 
 ### Color Palettes (`P`)
 1. **Geiss Fire**
