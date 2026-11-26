@@ -54,41 +54,60 @@ Just like 90s VGA Mode 13h (`320×200×256`) demoscene productions and early Win
 ### Windowed Fast Fourier Transform
 On every frame, the analyzer reads the latest $N = 2048$ mono samples $x[n]$ at sample rate $f_s$ (typically $44.1\text{ kHz}$ or $48\text{ kHz}$), applies a Hann window $w[n]$ to suppress spectral leakage, and computes the real FFT magnitude spectrum:
 
-$$w[n] = \frac{1}{2}\left(1 - \cos\!\left(\frac{2\pi n}{N - 1}\right)\right), \qquad X[k] = \frac{4}{N}\left|\sum_{n=0}^{N-1} x[n]\,w[n]\,e^{-i 2\pi k n / N}\right|$$
+$$
+w[n] = \frac{1}{2}\left(1 - \cos\left(\frac{2\pi n}{N - 1}\right)\right), \qquad X[k] = \frac{4}{N}\left|\sum_{n=0}^{N-1} x[n] w[n] e^{-i 2\pi k n / N}\right|
+$$
 
 ### Logarithmic Frequency Binning & Spectral Tilt Compensation
 Because human pitch perception is logarithmic, we partition the spectrum into $M = 48$ geometrically spaced frequency bands spanning $40\text{ Hz}$ to $\min(16\text{ kHz}, 0.45 f_s)$:
 
-$$f_m = f_{\min} \left(\frac{f_{\max}}{f_{\min}}\right)^{m / M}, \qquad m \in \{0, 1, \dots, M\}$$
+$$
+f_m = f_{\min} \left(\frac{f_{\max}}{f_{\min}}\right)^{m / M}, \qquad m \in \lbrace 0, 1, \dots, M \rbrace
+$$
 
 Using a prefix-sum array $C[k] = \sum_{j < k} X[j]$, the mean magnitude of bar $m$ spanning bins $[k_{\text{lo}}(m), k_{\text{hi}}(m))$ is computed in $O(1)$ per bar and multiplied by a linear spectral-tilt ramp $T(m) \in [1.0, 4.0]$ so high frequencies (which naturally carry less acoustic power) display with balanced visual height:
 
-$$B_{\text{raw}}[m] = T(m)\,\frac{C[k_{\text{hi}}(m)] - C[k_{\text{lo}}(m)]}{k_{\text{hi}}(m) - k_{\text{lo}}(m)}$$
+$$
+B_{\text{raw}}[m] = T(m) \cdot \frac{C[k_{\text{hi}}(m)] - C[k_{\text{lo}}(m)]}{k_{\text{hi}}(m) - k_{\text{lo}}(m)}
+$$
 
 In addition to the 48 bars, three macro bands are integrated over fixed frequency intervals:
-- **Bass ($20\text{–}160\text{ Hz}$)**: Kick drums and sub-bass.
-- **Mids ($160\text{–}2000\text{ Hz}$)**: Vocals, synths, guitars, snares.
-- **Treble ($2000\text{–}12000\text{ Hz}$)**: Hi-hats, cymbals, air, and transients.
+- **Bass (20–160 Hz)**: Kick drums and sub-bass.
+- **Mids (160–2000 Hz)**: Vocals, synths, guitars, snares.
+- **Treble (2000–12000 Hz)**: Hi-hats, cymbals, air, and transients.
 
 ### Automatic Gain Control (AGC) & Logarithmic Compression
 So the visualizer looks equally dynamic on quiet acoustic tracks and heavily compressed electronic tracks, each band maintains a decaying peak reference $R(t)$ with a $4.0\text{-second}$ half-life:
 
-$$R(t) = \max\!\left(R(t - \Delta t)\cdot 0.5^{\Delta t / 4.0},\; B_{\text{raw}}(t),\; R_{\text{floor}}\right)$$
+$$
+R(t) = \max\left(R(t - \Delta t) \cdot 0.5^{\Delta t / 4.0}, \quad B_{\text{raw}}(t), \quad R_{\text{floor}}\right)
+$$
 
 The normalized bar heights are then compressed logarithmically:
 
-$$B[m] = \frac{\ln\!\left(1 + 20\,\frac{B_{\text{raw}}[m]}{R(t)}\right)}{\ln(21)} \in [0, 1]$$
+$$
+B[m] = \frac{\ln\left(1 + 20 \cdot \frac{B_{\text{raw}}[m]}{R(t)}\right)}{\ln(21)} \in [0, 1]
+$$
 
 ### Asymmetric Attack/Release Envelope & Beat Transient Detector
 To make visuals snap immediately on transients and coast smoothly afterward, each feature passes through a frame-rate-independent asymmetric exponential moving average (EMA):
 
-$$\alpha_{\text{att}} = 1 - 0.35^{60\,\Delta t}, \qquad \alpha_{\text{rel}} = 1 - 0.88^{60\,\Delta t}$$
+$$
+\alpha_{\text{att}} = 1 - 0.35^{60 \Delta t}, \qquad \alpha_{\text{rel}} = 1 - 0.88^{60 \Delta t}
+$$
 
-$$S(t) = S(t - \Delta t) + \alpha \cdot \left(B(t) - S(t - \Delta t)\right), \quad \text{where } \alpha = \begin{cases} \alpha_{\text{att}} & B(t) > S(t - \Delta t) \\ \alpha_{\text{rel}} & B(t) \le S(t - \Delta t) \end{cases}$$
+$$
+S(t) = S(t - \Delta t) + \alpha \cdot \left(B(t) - S(t - \Delta t)\right), \qquad \alpha = \begin{cases}
+\alpha_{\text{att}} & \text{if } B(t) > S(t - \Delta t) \\
+\alpha_{\text{rel}} & \text{if } B(t) \le S(t - \Delta t)
+\end{cases}
+$$
 
-A **beat transient** triggers when instantaneous bass energy $E_{\text{bass}}$ jumps above its rolling $45\text{-frame}$ ($\approx 0.75\text{ s}$) mean $\bar{E}_{\text{bass}}$ subject to a $180\text{ ms}$ cooldown:
+A **beat transient** triggers when instantaneous bass energy $E_{\text{bass}}$ jumps above its rolling 45-frame ($\approx 0.75\text{ s}$) mean $\bar{E}_{\text{bass}}$ subject to a $180\text{ ms}$ cooldown:
 
-$$\text{beat} = \left(E_{\text{bass}} > 1.4\,\bar{E}_{\text{bass}}\right) \land \left(E_{\text{bass}} > 0.3\,R_{\text{bass}}\right) \land \left(t - t_{\text{last\_beat}} > 0.18\text{ s}\right)$$
+$$
+\text{beat} = \left(E_{\text{bass}} > 1.4 \bar{E}_{\text{bass}}\right) \land \left(E_{\text{bass}} > 0.3 R_{\text{bass}}\right) \land \left(t - t_{\text{prev}} > 0.18\text{ s}\right)
+$$
 
 When a beat fires, the beat envelope `pulse` is set to $1.0$ and decays exponentially with a $120\text{ ms}$ half-life ($\text{pulse} \leftarrow \text{pulse} \cdot 0.5^{\Delta t / 0.12}$).
 
@@ -107,33 +126,41 @@ The signature Winamp Geiss / MilkDrop look comes from **spatial coordinate warpi
 #### 1. Polar Coordinate Grid
 At setup/resize, we precompute radius and angle for every pixel:
 
-$$r(x, y) = \sqrt{x^2 + y^2}, \qquad \theta(x, y) = \operatorname{atan2}(y, x)$$
+$$
+r(x, y) = \sqrt{x^2 + y^2}, \qquad \theta(x, y) = \mathrm{atan2}(y, x)
+$$
 
 #### 2. Audio-Reactive Polar Warp Field
-On each frame (with frame-rate normalization $k = 60\,\Delta t$), we compute where each pixel $(r, \theta)$ should sample the *previous* frame from:
+On each frame (with frame-rate normalization $k = 60 \Delta t$), we compute where each pixel $(r, \theta)$ should sample the *previous* frame from:
 
-$$\begin{aligned}
-\Delta z &= (0.010 + 0.05\,E_{\text{bass}})\cdot d_{\text{zoom}}\cdot k \\
-s(r, \theta, t) &= 1.0 - \Delta z + 0.012\,\sin(N_{\text{petals}}\theta + 1.3t)\cdot(0.4 + E_{\text{treble}}) \\
-\Delta\theta(r, t) &= (0.008 + 0.03\,E_{\text{mid}})\cdot d_{\text{rot}}\cdot k + 0.02\,\sin(3r - 2t)\cdot(0.3 + E_{\text{mid}})
-\end{aligned}$$
+$$
+\begin{aligned}
+\Delta z &= (0.010 + 0.05 E_{\text{bass}}) \cdot d_{\text{zoom}} \cdot k \\
+s(r, \theta, t) &= 1.0 - \Delta z + 0.012 \sin(N_{\text{petals}}\theta + 1.3t) \cdot (0.4 + E_{\text{treble}}) \\
+\Delta\theta(r, t) &= (0.008 + 0.03 E_{\text{mid}}) \cdot d_{\text{rot}} \cdot k + 0.02 \sin(3r - 2t) \cdot (0.3 + E_{\text{mid}})
+\end{aligned}
+$$
 
-The source polar coordinates $(r', \theta') = (r \cdot s,\; \theta + \Delta\theta)$ are converted back to fractional pixel indices $(u, v)$:
+The source polar coordinates $(r', \theta') = (r \cdot s, \theta + \Delta\theta)$ are converted back to fractional pixel indices $(u, v)$:
 
-$$u = \frac{1}{2}\left(\frac{r'\cos\theta'}{A} + 1\right)(W - 1), \qquad v = \frac{1}{2}\left(r'\sin\theta' + 1\right)(H - 1)$$
+$$
+u = \frac{1}{2}\left(\frac{r'\cos\theta'}{A} + 1\right)(W - 1), \qquad v = \frac{1}{2}\left(r'\sin\theta' + 1\right)(H - 1)
+$$
 
 #### 3. Bilinear Resampling & Exponential Decay
 Sampling `prev_fb` at nearest-neighbor integer indices produces jagged staircases and stalled motion. Instead, we perform vectorized bilinear interpolation across the 4 surrounding pixels $(x_0, y_0) = (\lfloor u \rfloor, \lfloor v \rfloor)$ with fractional weights $(f_x, f_y) = (u - x_0, v - y_0)$ and multiply by the per-frame decay factor $0.955^k$:
 
-$$I_{\text{warped}}(y, x) = 0.955^k \Big[(1 - f_y)\big((1 - f_x)I_{y_0, x_0} + f_x I_{y_0, x_0+1}\big) + f_y\big((1 - f_x)I_{y_0+1, x_0} + f_x I_{y_0+1, x_0+1}\big)\Big]$$
+$$
+I_{\text{warped}}(y, x) = 0.955^k \left[(1 - f_y)\left((1 - f_x)I_{y_0, x_0} + f_x I_{y_0, x_0+1}\right) + f_y\left((1 - f_x)I_{y_0+1, x_0} + f_x I_{y_0+1, x_0+1}\right)\right]
+$$
 
 #### 4. Foreground Waveform Primitives & Beat Mutation
-On top of the decayed warp buffer, we plot the live time-domain waveform $w[i] \in [-1, 1]$ with a 4-neighbor glow kernel (`glow = 0.55`), cycling through three classic geometries on beats:
-- **Breathing Ring**: $\rho(\phi) = (0.35 + 0.25\,E_{\text{bass}}) + 0.22\,w(\phi)$ for $\phi \in [0, 2\pi)$.
-- **Oscilloscope Ribbon**: $x \in [-0.9A, 0.9A],\; y = 0.45\,w(x)\cos(0.4t)$.
-- **Lissajous Phase Scope**: $x = 0.6\,w[i]\min(A, 1.6),\; y = 0.6\,w[(i + N/5) \bmod N]$.
+On top of the decayed warp buffer, we plot the live time-domain waveform $w[i] \in [-1, 1]$ with a 9-point isotropic glow kernel, smoothly morphing across three classic geometries on beats:
+- **Breathing Ring**: $\rho(\phi) = (0.35 + 0.25 E_{\text{bass}}) + 0.22 w(\phi)$ for $\phi \in [0, 2\pi)$.
+- **Oscilloscope Ribbon**: $x \in [-0.9A, 0.9A]$, $y = 0.45 w(x)\cos(0.4t)$.
+- **Lissajous Phase Scope**: $x = 0.6 w[i]\min(A, 1.6)$, $y = 0.6 w[(i + N/5) \bmod N]$.
 
-On beat transients, 48 bright (`255`) spark particles spawn around the ring perimeter and get pulled into the swirling feedback vortex over subsequent frames.
+On beat transients, bright (`255`) spark particles spawn around the ring perimeter and get pulled into the swirling feedback vortex over subsequent frames.
 
 ---
 
@@ -141,30 +168,42 @@ On beat transients, 48 bright (`255`) spark particles spawn around the ring peri
 
 Inspired by 90s *Second Reality* / *Sanity* demos and Windows Media Player's *Ambience*.
 
-#### 1. 2× Oversized Lookup Tables & Wandering Center Trick
-Computing $1/r$ and $\operatorname{atan2}(y, x)$ every frame used to be too slow for 486 CPUs, so demoscene coders precomputed lookup tables twice the screen size ($2W \times 2H$):
+#### 1. Sub-Pixel Polar Depth & Wandering Camera Center
+Each frame, the tunnel's look-at center glides along a smooth Lissajous path $(d_x, d_y) = (0.42\sin(0.37t), 0.38\sin(0.53t))$. Evaluating polar depth and angle around the shifted coordinates $(x_c, y_c) = (x - d_x, y - d_y)$ avoids integer lookup-table stepping:
 
-$$D(x, y) = \frac{0.5}{\max(\sqrt{x^2 + y^2},\; 0.03)}, \qquad \Theta(x, y) = \frac{\operatorname{atan2}(y, x)}{\pi} \in [-1, 1]$$
+$$
+D(x_c, y_c) = \frac{0.5}{\max\left(\sqrt{x_c^2 + y_c^2}, 0.025\right)}, \qquad \Theta(x_c, y_c) = \frac{\mathrm{atan2}(y_c, x_c)}{\pi} \in [-1, 1]
+$$
 
-Along with a radial distance vignette $S(x, y) = \min(1.6\,r, 1)^{1.2}$ so the center of the wormhole fades smoothly into dark infinity. Each frame, we move the tunnel's look-at center along a Lissajous path $(d_x, d_y) = (0.45\sin(0.37t),\; 0.40\sin(0.53t))$ simply by slicing an $(H \times W)$ window out of $D$, $\Theta$, and $S$ at offset $(o_x, o_y)$.
+A radial distance vignette $S(r) = \min(1.65 r, 1)^{1.15}$ fades the center of the wormhole smoothly into dark infinity.
 
 #### 2. Kaleidoscope Folding & Texture Coordinates
-Forward travel $z(t)$ accelerates with bass and beat pulses ($\dot{z} = 0.6 + 2.5\,E_{\text{bass}} + 1.5\,\text{pulse}$), while rotation $\psi(t)$ spins with mid frequencies. Texture coordinates $(u, v)$ are warped and folded into an $N_{\text{folds}}$-way seamless kaleidoscope mirror using triangle-wave modular folding:
+Forward travel $z(t)$ accelerates with bass and beat pulses ($\dot{z} = 0.65 + 2.5 E_{\text{bass}} + 1.5 \text{pulse}$), while rotation $\psi(t)$ spins with mid frequencies. Texture coordinates $(u, v)$ are warped and folded into an $N_{\text{folds}}$-way seamless kaleidoscope mirror using triangle-wave modular folding:
 
-$$\begin{aligned}
-u &= D \cdot (1.0 + 0.25\,E_{\text{bass}}) + z(t) \\
+$$
+\begin{aligned}
+u &= D \cdot (1.0 + 0.25 E_{\text{bass}}) + z(t) \\
 a &= \Theta \cdot \frac{N_{\text{folds}}}{2} + \psi(t) + 0.15\sin(1.5u + t) \\
-v &= \big|(a \bmod 2.0) - 1.0\big| \in [0, 1]
-\end{aligned}$$
+v &= \left|(a \bmod 2.0) - 1.0\right| \in [0, 1]
+\end{aligned}
+$$
 
 #### 3. Procedural XOR & Plasma Tunnel Walls + Spectrum Rings
-The tunnel alternates between two procedural textures in $(u, v)$ space:
-- **Demoscene Bitwise XOR Texture**:
-  $$T_{\text{xor}}(u, v) = \big(\big(\lfloor 32u \rfloor \oplus \lfloor 64v \rfloor\big) \mathbin{\&} 63\big) \cdot 3.4 + 30$$
-- **Flowing Sine Plasma Texture**:
-  $$T_{\text{plasma}}(u, v) = 127 + 64\sin\!\big(9.4u + 4\sin(2\pi v + t)\big) + 64\sin(12.6v + 2u - 1.7t)$$
+The tunnel crossfades between two procedural textures in $(u, v)$ space:
 
-Finally, the 48 FFT spectrum bars $B[\lfloor v \cdot 48 \rfloor]$ modulate the wall brightness and light up concentric depth rings ($\sin(12.6u - 4t) > 0.7$) rushing toward the viewer.
+- **Demoscene Bitwise XOR Texture**:
+
+$$
+T_{\text{xor}}(u, v) = \left(\left(\lfloor 32u \rfloor \oplus \lfloor 64v \rfloor\right) \text{ AND } 63\right) \cdot 3.4 + 30
+$$
+
+- **Flowing Sine Plasma Texture**:
+
+$$
+T_{\text{plasma}}(u, v) = 127 + 64\sin\left(9.4u + 4\sin(2\pi v + t)\right) + 64\sin(12.6v + 2u - 1.7t)
+$$
+
+Finally, the 48 FFT spectrum bars $B[\lfloor v \cdot 48 \rfloor]$ modulate the wall brightness and light up smooth bell-curve depth rings rushing toward the viewer.
 
 ---
 
@@ -172,19 +211,23 @@ Finally, the 48 FFT spectrum bars $B[\lfloor v \cdot 48 \rfloor]$ modulate the w
 
 A super-juiced tribute to Windows Media Player's iconic spectrum and scope visualizer.
 
-1. **Rising Heat-Trail Buffer**:
-   Instead of clearing the screen to black, the previous frame shifts upward by 1 pixel per frame and decays:
-   $$\text{fb}[y, x] \leftarrow \text{fb}[y + 1, x] \cdot 0.80^{60\,\Delta t}$$
+1. **Rising Diffused Heat-Trail Buffer**:
+   Instead of clearing the screen to black, the previous frame shifts upward, diffuses through an isotropic $3 \times 3$ kernel, and decays:
+
+$$
+\text{fb}[y, x] \leftarrow \text{blur}_{3\times 3}\left(\text{fb}[y + 1, x]\right) \cdot 0.82^{60 \Delta t}
+$$
+
 2. **Logarithmic Spectrum Bars**:
-   Each column maps to one of $N_b \le 48$ bars (with a 1-pixel gap between bars when wide enough), filled up to height $h_b = 0.62\,H \cdot B[b]$ with a vertical intensity gradient from `60` at the base to `230` at the top.
+   Each column maps to one of $N_b \le 48$ bars (with a 1-pixel gap between bars when wide enough), filled up to height $h_b = 0.62 H \cdot B[b]$ with sub-pixel fractional top coverage, horizontal bevel shading, and an incandescent rim highlight.
 3. **Gravity Peak-Hold Caps**:
    Each bar maintains a peak height $p_b$, hold timer $\tau_b$, and downward velocity $v_b$:
    - When $h_b > p_b$: $p_b \leftarrow h_b$, $\tau_b \leftarrow 0.4\text{ s}$, $v_b \leftarrow 0$.
    - Otherwise, while $\tau_b > 0$: $\tau_b \leftarrow \tau_b - \Delta t$.
-   - Once $\tau_b \le 0$: gravity accelerates the cap downward ($v_b \leftarrow v_b + 2.5H\,\Delta t$, $p_b \leftarrow \max(0, p_b - v_b\,\Delta t)$).
+   - Once $\tau_b \le 0$: gravity accelerates the cap downward ($v_b \leftarrow v_b + 2.5H \Delta t$, $p_b \leftarrow \max(0, p_b - v_b \Delta t)$).
    - Peak caps are drawn at intensity `255` onto the output frame *after* saving the trail buffer so falling dots stay crisp and never leave dashed vertical smears.
-4. **Connected Glowing Oscilloscope**:
-   The waveform $y(x) = 0.30H + 0.22H \cdot w(x)$ is connected vertically between adjacent columns $[ \min(y_x, y_{x-1}), \max(y_x, y_{x-1}) ]$ with a core intensity of $230 + 25\cdot\text{pulse}$ and a $\pm 2.5\text{ px}$ vertical glow halo of `110`.
+4. **CRT Phosphor Signed Distance Field (SDF) Oscilloscope**:
+   The waveform $y(x) = 0.30H + 0.22H \cdot w(x)$ is connected vertically between adjacent columns $[\min(y_x, y_{x-1}), \max(y_x, y_{x-1})]$ and shaded via vertical distance $d$ using a white-hot Gaussian core $\exp(-d^2 / 2\sigma^2)$ plus an exponential phosphor halo.
 
 ---
 
@@ -194,17 +237,35 @@ Combines a 4-wave interference plasma with the classic 90s demoscene cellular fi
 
 1. **Contour-Banded 4-Wave Interference Plasma**:
    Four plane and radial sine waves interfere across $(X, Y)$:
-   $$p(X, Y, t) = \sin(3X + 0.8t) + \sin(4Y - 1.04t) + \sin\!\big(3(X\cos\phi + Y\sin\phi) + 0.8t\big) + \sin(5R - 2\Phi_{\text{bass}})$$
+
+$$
+p(X, Y, t) = \sin(3X + 0.8t) + \sin(4Y - 1.04t) + \sin\left(3(X\cos\phi + Y\sin\phi) + 0.8t\right) + \sin(5R - 2\Phi_{\text{bass}})
+$$
+
    where $\dot{\Phi}_{\text{bass}} = 1 + 2E_{\text{bass}}$. Passing $p$ through a secondary high-frequency sine creates sharp neon contour bands modulated by mid and treble energy:
-   $$I_{\text{plasma}} = 6 + 84 \cdot \frac{1 + \sin\!\big(\pi\,p\,(1 + 0.5E_{\text{treble}})\big)}{2} \cdot (0.45 + 0.55E_{\text{mid}})$$
+
+$$
+I_{\text{plasma}} = 6 + 78 \cdot \left(\frac{1 + \sin\left(\pi p (1 + 0.5E_{\text{treble}})\right)}{2}\right)^{1.15} \cdot (0.45 + 0.55E_{\text{mid}})
+$$
 
 2. **Spectrum-Seeded Cellular Fire Advection**:
-   - **Stochastic Hotspot Seeding**: Smoothly seeding the bottom row fails because 4-neighbor averaging quickly blurs uniform rows into a flat gray band. Instead, the bottom rows are seeded with discrete `255`-intensity embers whose probability density is driven by the local FFT spectrum bar $B(x)$ and bass energy:
-     $$P_{\text{ember}}(x) = \big(0.2 + 0.6\sqrt{B(x)}\big)\cdot(0.6 + 0.6E_{\text{bass}})$$
-   - **Upward Convection & Cooling**: On each step, heat propagates upward via a 4-neighbor stencil (left, center, right from row $y+1$, plus center from row $y+2$) minus a bass-modulated cooling term:
-     $$F(y, x) \leftarrow \max\!\left(0,\; \frac{F(y+1, x-1) + F(y+1, x) + F(y+1, x+1) + F(y+2, x)}{4} - \text{cool}\right)$$
-   - **Composite Blend**: Flames attenuate the plasma behind them and add incandescent heat + flame-edge gradient relief $|\nabla F|$ on top:
-     $$I_{\text{out}} = \min\!\left(255,\; I_{\text{plasma}}\cdot\left(1 - \operatorname{clip}\!\left(\frac{F}{135}, 0, 0.88\right)\right) + 1.05\,F + 0.32\,|\nabla F|\right)$$
+   - **Stochastic Hotspot Seeding**: Smoothly seeding the bottom row fails because neighbor averaging quickly blurs uniform rows into a flat gray band. Instead, the bottom rows are seeded with discrete `255`-intensity embers whose probability density is driven by the local FFT spectrum bar $B(x)$ and bass energy:
+
+$$
+P_{\text{ember}}(x) = \left(0.22 + 0.60\sqrt{B(x)}\right) \cdot (0.6 + 0.6E_{\text{bass}})
+$$
+
+   - **Upward Convection & Cooling**: On each step, heat propagates upward via a wind-curled 6-neighbor convection stencil from rows $y+1$ and $y+2$ minus a bass-modulated cooling term:
+
+$$
+F(y, x) \leftarrow \max\left(0, \quad \sum_{(\Delta y, \Delta x)} w_{\Delta y, \Delta x} F(y + \Delta y, x + \Delta x) - \text{cool}\right)
+$$
+
+   - **Composite Blend & Flame-Edge Relief**: Flames attenuate the plasma behind them and add incandescent heat plus edge-gradient relief $|\nabla F|$ on top:
+
+$$
+I_{\text{out}} = \min\left(255, \quad I_{\text{plasma}} \cdot \left(1 - \mathrm{clip}\left(\frac{F}{135}, 0, 0.88\right)\right) + 1.05 F + 0.32 |\nabla F|\right)
+$$
 
 ---
 
@@ -213,7 +274,11 @@ Combines a 4-wave interference plasma with the classic 90s demoscene cellular fi
 A direct crossover with **terminal-soup** that couples a 9-point isotropic Gray-Scott reaction-diffusion system ($U + 2V \to 3V$) to **Chladni acoustic nodal standing waves**:
 
 1. **Chladni Resonant Plate Equation**:
-   $$C(x, y) = \cos(n\pi x)\cos(m\pi y) - \cos(m\pi x)\cos(n\pi y), \qquad N_{\text{nodal}}(x, y) = \exp\!\big(-(2.8\,C(x, y))^2\big)$$
+
+$$
+C(x, y) = \cos(n\pi x)\cos(m\pi y) - \cos(m\pi x)\cos(n\pi y), \qquad N_{\text{nodal}}(x, y) = \exp\left(-(2.8 C(x, y))^2\right)
+$$
+
    where mode numbers $(n, m)$ morph smoothly on beat transients and flex with mid and treble energy.
 2. **Acoustic Morphogen Forcing & Membrane-Relief Shading**:
    The local feed rate $F(x, y) = 0.042 + 0.016 E_{\text{bass}} + 0.008 N_{\text{nodal}}(x, y)$ and beat nucleation follow the nodal lines, while the output combines morphogen ratio $V / (U + V)$ with edge-gradient relief $|\nabla V|$.
@@ -223,8 +288,8 @@ A direct crossover with **terminal-soup** that couples a 9-point isotropic Gray-
 ### Preset 6: Synthwave 3D Horizon & Audio Canyon (`effects/synthwave_grid.py`)
 
 Perspective-projected 3D terrain canyon ($Z = 0.85 / \max(y - y_{\text{horizon}}, 0.045)$) with:
-- **Segmented Scanline Sun**: Radial disc modulated by horizontal scanline cutouts $\sin\big(36(Y - y_{\odot}) - 2.5t\big)$ and atmospheric horizon bloom.
-- **Spectrum Mountain Ridge**: Horizon silhouette displaced by the 48 FFT bars with glowing neon rim highlights.
+- **Segmented Scanline Sun**: Radial disc modulated by horizontal scanline cutouts $\sin(36(Y - y_{\odot}) - 2.5t)$ and atmospheric horizon bloom.
+- **Spectrum Mountain Ridge**: Symmetric canyon silhouette displaced by the 48 FFT bars with glowing neon rim highlights.
 - **Audio-Warped 3D Canyon Grid**: Anti-aliased longitudinal and depth grid lines warped laterally by mid frequencies and vertically by the live waveform.
 
 ---
@@ -232,20 +297,24 @@ Perspective-projected 3D terrain canyon ($Z = 0.85 / \max(y - y_{\text{horizon}}
 ### Preset 7: 3D Harmonic Attractor & Torus-Knot Phase Scope (`effects/attractor_scope.py`)
 
 Generates a 3D parametric $(p, q)$ torus-knot ribbon modulated by the live waveform $w(\phi)$:
-$$\begin{aligned}
-x_3(\phi) &= \big(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\big)\cos(p\phi) \\
-y_3(\phi) &= \big(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\big)\sin(p\phi) \\
-z_3(\phi) &= r_{\text{tube}}(\phi)\sin(q\phi) + 0.15 E_{\text{treble}}\sin(2\phi - 1.8t)
-\end{aligned}$$
+
+$$
+\begin{aligned}
+x_3(\phi) &= \left(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\right)\cos(p\phi) \\
+y_3(\phi) &= \left(R_{\text{torus}} + r_{\text{tube}}(\phi)\cos(q\phi)\right)\sin(p\phi) \\
+z_3(\phi) &= r_{\text{tube}}(\phi)\sin(q\phi) + 0.18 E_{\text{treble}}\sin(2\phi - 1.8t)
+\end{aligned}
+$$
+
 rotated through $SO(3)$ via Euler angles $(\alpha_x, \alpha_y, \alpha_z)$ driven by bass, mid, and treble, perspective-projected with depth-cue shading, and plotted via sub-pixel bilinear splatting over an isotropically diffused swirl buffer.
 
 ---
 
 ### Preset 8: Electric Julia Fractal Kaleidoscope (`effects/julia_fractal.py`)
 
-Iterates the complex quadratic map $z_{k+1} = z_k^2 + c(t)$ for 14 unrolled vectorized steps, where $c(t) = -0.745 + 0.085\cos\Phi + i(0.186 + 0.085\sin(0.83\Phi))$ orbits the Mandelbrot cardioid perimeter:
+Iterates the complex quadratic map $z_{k+1} = z_k^2 + c(t)$ for 16 unrolled vectorized steps, where $c(t) = -0.775 + 0.065\cos\Phi + i(0.148 + 0.065\sin(0.83\Phi))$ orbits the Mandelbrot cardioid perimeter:
 - **Smooth Escape-Potential Coloring**: $\nu = k + 1 - \frac{1}{2}\log_2(\log_2 |z|^2)$ eliminates discrete contour stepping.
-- **Pickover Interior Orbital Trap**: Tracks $d_{\min} = \min_k \min(|z_r| + |z_i|, ||z|^2 - 0.5|)$ so interior chambers glow in sync with beat pulses.
+- **Pickover Interior Orbital Traps**: Tracks minimum cross-stalk distance $\min(\lvert z_r \rvert, \lvert z_i \rvert)$ and ring distance $\lvert \lvert z \rvert^2 - 0.38 \rvert$ so interior chambers glow in sync with beat pulses.
 
 ---
 
@@ -255,15 +324,27 @@ If you simply rotate a 256-entry palette that includes black at index `0`, then 
 
 **terminal-trip** solves this by separating **hue cycling** from **luminance ramping**:
 
-1. **Seamless 256-Entry Cyclic Hue Table $H[i] \in [0, 255]^3$**:
+1. **Seamless 256-Entry Cyclic Hue Table** ($H[i] \in [0, 255]^3$):
    Generated either from closed RGB control-point loops or Inigo Quilez's periodic cosine formula:
-   $$\vec{H}(t) = 255 \cdot \operatorname{clip}\!\Big(\vec{a} + \vec{b}\cos\!\big(2\pi(\vec{c}\,t + \vec{d})\big),\; 0, 1\Big), \qquad t = \frac{i}{256}$$
+
+$$
+\vec{H}(t) = 255 \cdot \mathrm{clip}\left(\vec{a} + \vec{b}\cos\left(2\pi(\vec{c} t + \vec{d})\right), 0, 1\right), \qquad t = \frac{i}{256}
+$$
+
 2. **Anchored Brightness Ramp & White-Hot Core**:
-   For every intensity index $i \in \{0, \dots, 255\}$ and current cycle offset $\Delta(t)$:
-   $$\text{ramp}[i] = \min\!\left(1,\; \frac{i}{96}\right)^{1.4}, \qquad \text{white}[i] = 0.55\,\max\!\left(0,\; \frac{i - 190}{65}\right)^2$$
+   For every intensity index $i \in \lbrace 0, \dots, 255 \rbrace$ and current cycle offset $\Delta(t)$:
+
+$$
+\text{ramp}[i] = \min\left(1, \frac{i}{64}\right)^{1.2}, \qquad \text{white}[i] = 0.55 \max\left(0, \frac{i - 195}{60}\right)^{1.8}
+$$
+
    The final LUT color for intensity $i$ is:
-   $$\vec{C}[i] = \vec{H}\big[(i + \lfloor\Delta(t)\rfloor) \bmod 256\big] \cdot \text{ramp}[i], \qquad \vec{C}_{\text{final}}[i] = \vec{C}[i] + \big(255 - \vec{C}[i]\big)\cdot\text{white}[i]$$
-   with $\vec{C}_{\text{final}}[0] = (0, 0, 0)$. Because $\text{ramp}[0] = 0$ and $\text{white}[i]$ kicks in above index `190`, background void always stays pitch black, mid-intensities rotate smoothly through the entire hue wheel as $\Delta(t)$ advances ($\dot{\Delta} = 14\,(1 + 2E_{\text{bass}})$, plus $+24$ on beat hits), and peak intensities (`220..255`) glow incandescent white-hot.
+
+$$
+\vec{C}[i] = \vec{H}\left[(i + \lfloor\Delta(t)\rfloor) \bmod 256\right] \cdot \text{ramp}[i], \qquad \vec{C}_{\text{final}}[i] = \vec{C}[i] + \left(255 - \vec{C}[i]\right) \cdot \text{white}[i]
+$$
+
+   with $\vec{C}_{\text{final}}[0] = (0, 0, 0)$. Because $\text{ramp}[0] = 0$ and $\text{white}[i]$ kicks in above index `195`, background void always stays pitch black, mid-intensities rotate smoothly through the entire hue wheel as $\Delta(t)$ advances ($\dot{\Delta} = 14(1 + 2E_{\text{bass}})$, plus $+24$ on beat hits), and peak intensities (`220..255`) glow incandescent white-hot.
 
 ---
 
@@ -273,12 +354,16 @@ Unconditionally emitting `\x1b[38;2;R;G;Bm\x1b[48;2;R;G;Bm▀` for every cell of
 
 `Presenter.compose()` optimizes this in vectorized NumPy in **~0.7 ms per frame**:
 1. **Bit-Shift Quantization (`D` hotkey)**:
-   Optionally shifts off the lowest $s \in \{0, 1, 2\}$ bits of the intensity index (`idx = (idx >> s) << s`), coalescing nearly identical neighboring shades into identical indices.
+   Optionally shifts off the lowest $s \in \lbrace 0, 1, 2 \rbrace$ bits of the intensity index (`idx = (idx >> s) << s`), coalescing nearly identical neighboring shades into identical indices.
 2. **Row Pairing**:
    Splits the $(H \times W)$ index buffer into even rows `top = idx[0::2]` (foreground of `▀`) and odd rows `bot = idx[1::2]` (background of `▀`).
 3. **Horizontal Run-Length Escape Elision**:
    Computes boolean change masks across columns:
-   $$\text{fch}[r, c] = (\text{top}[r, c] \ne \text{top}[r, c-1]), \qquad \text{bch}[r, c] = (\text{bot}[r, c] \ne \text{bot}[r, c-1])$$
+
+$$
+\text{fch}[r, c] = (\text{top}[r, c] \ne \text{top}[r, c-1]), \qquad \text{bch}[r, c] = (\text{bot}[r, c] \ne \text{bot}[r, c-1])
+$$
+
    The foreground escape code `\x1b[38;2;R;G;Bm` is emitted **only** where `fch` is true, and the background escape code `\x1b[48;2;R;G;Bm` is emitted **only** where `bch` is true.
 4. **Tear-Free Single Flush**:
    Each row is prefixed with explicit cursor positioning `\x1b[{row};1H` (never `\x1b[2J` clear-screen, which causes visible blanking flicker), joined with the HUD overlay, and written in a single `sys.stdout.write()` call inside the terminal's alternate screen buffer (`\x1b[?1049h`).
