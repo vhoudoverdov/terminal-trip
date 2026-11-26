@@ -13,6 +13,7 @@ Created with Google Antigravity.
 ![Cymatic Lab](gif/cymatic-lab.gif)
 ![Julia Fractal](gif/julia-fractal.gif)
 ![3D Attractor](gif/3d-attractor.gif)
+![Lux Wormhole](gif/synth-horizon.gif)
 ![Lux Wormhole](gif/lux-wormhole.gif)
 
 ---
