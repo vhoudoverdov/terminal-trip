@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "terminal-trip"
-version = "0.1.0"
+version = "0.2.1"
 description = "90s/2000s demoscene, Winamp (Geiss/MilkDrop), and WMP-inspired music visualizer for the terminal"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,5 +34,5 @@ loopback-alt = ["soundcard>=0.4.2"]
 terminal-trip = "main:main"
 
 [tool.setuptools]
-py-modules = ["main", "audio", "palettes", "renderer"]
+py-modules = ["main", "audio", "palettes", "renderer", "updater"]
 packages = ["effects"]

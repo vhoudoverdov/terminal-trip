@@ -115,6 +115,10 @@ While `terminal-trip` is running, use your keyboard to switch visual patterns, c
 
 | Flag | Default | Description |
 | :--- | :--- | :--- |
+| `--version` | *None* | Print the installed `terminal-trip` version and exit |
+| `--check-update` | *Off* | Check GitHub Releases/Tags for a newer version and exit |
+| `--update` | *Off* | Self-update `terminal-trip` (`git pull --ff-only` or `pip install --upgrade`) and exit |
+| `--no-update-check` | *Off* | Disable the 24h-cached background startup update check |
 | `--file PATH` | *None* | Audio file to play and visualize (`.wav`, `.mp3`, `.flac`, `.ogg`) |
 | `--synth` | *Off* | Start immediately with the built-in procedural 125 BPM demo synth |
 | `--preset {1..8}` | `1` | Starting visual preset |
