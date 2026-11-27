@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import threading
 import time
 
 import numpy as np
@@ -18,6 +19,7 @@ from audio import Analyzer, FileSource, LoopbackSource, SynthSource, sanitize_la
 from effects import PRESETS
 from palettes import PaletteManager
 from renderer import Presenter, Terminal, save_png
+from updater import __version__, check_for_update, check_for_update_cached, perform_update
 
 HELP = [
     "TERMINAL-TRIP  hotkeys",
@@ -216,12 +218,24 @@ class App:
         return "".join(s)
 
     # ------------------------------------------------------------- main loop
+    def _start_bg_update_check(self):
+        if getattr(self.args, "no_update_check", False) or os.environ.get("TERMINAL_TRIP_NO_UPDATE_CHECK"):
+            return
+
+        def worker():
+            info = check_for_update_cached()
+            if info and info.get("update_available"):
+                self.say(f"update v{info['latest']} available (run --update)", 6.0)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def run(self, term):
         target = 1.0 / self.args.fps
         start = last = time.perf_counter()
         cols, rows = term.size()
         frame_no = 0
         self.say("press ? for help", 5)
+        self._start_bg_update_check()
         while True:
             now = time.perf_counter()
             dt, last = min(now - last, 0.1), now
@@ -297,6 +311,10 @@ def _parse_size(val: str) -> tuple[int, int]:
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(prog="terminal-trip", description="Retro terminal music visualizer")
+    p.add_argument("--version", action="version", version=f"terminal-trip {__version__}")
+    p.add_argument("--check-update", action="store_true", help="check GitHub for a newer release and exit")
+    p.add_argument("--update", action="store_true", help="self-update terminal-trip to the latest release and exit")
+    p.add_argument("--no-update-check", action="store_true", help="disable background startup update check")
     p.add_argument("--file", help="audio file to play and visualize (wav; mp3/flac/ogg need miniaudio)")
     p.add_argument("--synth", action="store_true", help="start with the built-in demo synth")
     p.add_argument("--preset", type=int, default=1, help="starting preset 1-8")
@@ -316,11 +334,33 @@ def parse_args(argv=None):
     return p.parse_args(argv)
 
 
-def main(argv=None):
+def main(argv=None, fetcher=None, runner=None):
     args = parse_args(argv)
+    if args.check_update:
+        try:
+            info = check_for_update(fetcher=fetcher)
+        except Exception as e:
+            print(f"Update check failed: {e}", file=sys.stderr)
+            return 1
+        if info["update_available"]:
+            print(
+                f"Update available: v{info['current']} -> v{info['latest']} "
+                f"({info['source']}). Run 'terminal-trip --update' to install."
+            )
+        else:
+            print(f"terminal-trip is up to date (v{info['current']}, {info['source']}).")
+        return 0
+    if args.update:
+        kwargs = {"fetcher": fetcher}
+        if runner is not None:
+            kwargs["runner"] = runner
+        ok, msg = perform_update(**kwargs)
+        stream = sys.stdout if ok else sys.stderr
+        print(msg, file=stream)
+        return 0 if ok else 1
     if args.bench:
         bench(args)
-        return
+        return 0
     app = App(args)
     try:
         with Terminal() as term:
@@ -329,6 +369,7 @@ def main(argv=None):
         pass
     finally:
         app.src.stop()
+    return 0
 
 
 if __name__ == "__main__":

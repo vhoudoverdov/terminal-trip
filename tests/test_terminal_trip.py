@@ -1,10 +1,13 @@
 """Comprehensive unit test suite for terminal-trip."""
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import tempfile
 import unittest
 import wave
+from pathlib import Path
 import numpy as np
 
 from audio import (
@@ -17,10 +20,22 @@ from audio import (
     sanitize_label,
 )
 from effects import PRESETS
-from effects.base import bilinear, blur3x3, grid, laplacian_9pt, plot, resample
-from main import App, parse_args
+from effects.base import bilinear, blur3x3, grid, laplacian_9pt, plot
+from main import App, main, parse_args
 from palettes import PALETTES, PaletteManager
 from renderer import Presenter, save_png, to_rgb
+from updater import (
+    RAW_PYPROJECT_URL,
+    RELEASES_API_URL,
+    TAGS_API_URL,
+    __version__,
+    check_for_update,
+    check_for_update_cached,
+    fetch_latest_version,
+    format_version,
+    parse_version,
+    perform_update,
+)
 
 
 def make_features(
@@ -210,7 +225,7 @@ class TestEffectsAndApp(unittest.TestCase):
         clock = [0.0]
         src = SynthSource(clock=lambda: clock[0])
         src.start()
-        args = parse_args(["--synth", "--preset", "1", "--palette", "1"])
+        args = parse_args(["--synth", "--preset", "1", "--palette", "1", "--no-update-check"])
         app = App(args, source=src)
         self.assertTrue(app.supersample)
         self.assertEqual(app.presenter.shift, 0)
@@ -239,6 +254,160 @@ class TestEffectsAndApp(unittest.TestCase):
         hud_str = app.overlay(80, 24)
         self.assertIsInstance(hud_str, str)
         self.assertFalse(app.key("q", 0.6))
+
+
+class TestClientUpdater(unittest.TestCase):
+    def test_parse_and_format_version(self):
+        self.assertEqual(parse_version("0.2.1"), (0, 2, 1))
+        self.assertEqual(parse_version("v1.10.3"), (1, 10, 3))
+        self.assertEqual(format_version("v0.2.1"), "0.2.1")
+        self.assertGreater(parse_version("0.2.1"), parse_version("0.2.0"))
+        self.assertGreater(parse_version("1.0.0"), parse_version("0.9.9"))
+
+        for bad in ("", "1.2", "1.2.3.4", "v1.2.x", "0.2.1; rm -rf /", "../0.2.1"):
+            with self.assertRaises(ValueError):
+                parse_version(bad)
+
+    def test_fetch_latest_version_tiers(self):
+        # Tier 1: GitHub Releases API
+        def fetch_release(url, timeout):
+            if url == RELEASES_API_URL:
+                return json.dumps({"tag_name": "v0.3.0"})
+            raise RuntimeError("unexpected URL")
+
+        self.assertEqual(fetch_latest_version(fetcher=fetch_release), ("0.3.0", "github-release"))
+
+        # Tier 2: Fallback to GitHub Tags API when no release exists
+        def fetch_tags(url, timeout):
+            if url == RELEASES_API_URL:
+                raise RuntimeError("404 Not Found")
+            if url == TAGS_API_URL:
+                return json.dumps([{"name": "v0.1.0"}, {"name": "v0.2.5"}, {"name": "v0.2.1"}])
+            raise RuntimeError("unexpected URL")
+
+        self.assertEqual(fetch_latest_version(fetcher=fetch_tags), ("0.2.5", "github-tag"))
+
+        # Tier 3: Fallback to raw pyproject.toml on main
+        def fetch_pyproject(url, timeout):
+            if url in (RELEASES_API_URL, TAGS_API_URL):
+                raise RuntimeError("404")
+            if url == RAW_PYPROJECT_URL:
+                return '[project]\nname = "terminal-trip"\nversion = "0.4.2"\n'
+            raise RuntimeError("unexpected URL")
+
+        self.assertEqual(fetch_latest_version(fetcher=fetch_pyproject), ("0.4.2", "pyproject-main"))
+
+    def test_check_for_update_and_caching(self):
+        calls = [0]
+
+        def fake_fetch(url, timeout):
+            calls[0] += 1
+            return json.dumps({"tag_name": "v0.5.0"})
+
+        info = check_for_update(current_version="0.2.1", fetcher=fake_fetch)
+        self.assertTrue(info["update_available"])
+        self.assertEqual(info["current"], "0.2.1")
+        self.assertEqual(info["latest"], "0.5.0")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cpath = Path(tmp) / "update_check.json"
+            calls[0] = 0
+            r1 = check_for_update_cached(
+                current_version="0.2.1",
+                cache_path=cpath,
+                fetcher=fake_fetch,
+                now_fn=lambda: 1000.0,
+            )
+            self.assertFalse(r1["cached"])
+            self.assertEqual(calls[0], 1)
+
+            # Second call within 24h TTL uses cache without network call
+            r2 = check_for_update_cached(
+                current_version="0.2.1",
+                cache_path=cpath,
+                fetcher=fake_fetch,
+                now_fn=lambda: 2000.0,
+            )
+            self.assertTrue(r2["cached"])
+            self.assertTrue(r2["update_available"])
+            self.assertEqual(calls[0], 1)
+
+    def test_perform_update_git_and_pip_modes(self):
+        def fetch_newer(url, timeout):
+            return json.dumps({"tag_name": "v0.3.0"})
+
+        def fetch_same(url, timeout):
+            return json.dumps({"tag_name": f"v{__version__}"})
+
+        # 1. Already up to date
+        ok, msg = perform_update(current_version=__version__, fetcher=fetch_same)
+        self.assertTrue(ok)
+        self.assertIn("already up to date", msg)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+
+            # 2. Git mode refuses to overwrite dirty working tree
+            def dirty_runner(cmd, **kw):
+                return subprocess.CompletedProcess(cmd, 0, stdout=" M main.py\n", stderr="")
+
+            ok_dirty, msg_dirty = perform_update(
+                current_version="0.2.1",
+                repo_dir=root,
+                fetcher=fetch_newer,
+                runner=dirty_runner,
+            )
+            self.assertFalse(ok_dirty)
+            self.assertIn("uncommitted changes", msg_dirty)
+
+            # 3. Git mode clean working tree performs fetch + pull --ff-only
+            git_cmds = []
+
+            def clean_git_runner(cmd, **kw):
+                git_cmds.append(cmd)
+                return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+            ok_git, msg_git = perform_update(
+                current_version="0.2.1",
+                repo_dir=root,
+                fetcher=fetch_newer,
+                runner=clean_git_runner,
+            )
+            self.assertTrue(ok_git)
+            self.assertIn("via git", msg_git)
+            self.assertEqual(len(git_cmds), 3)  # status, fetch --tags, pull --ff-only
+
+        # 4. Pip package mode (no .git directory)
+        with tempfile.TemporaryDirectory() as tmp_pkg:
+            pip_cmds = []
+
+            def pip_runner(cmd, **kw):
+                pip_cmds.append(cmd)
+                return subprocess.CompletedProcess(cmd, 0, stdout="Successfully installed", stderr="")
+
+            ok_pip, msg_pip = perform_update(
+                current_version="0.2.1",
+                repo_dir=Path(tmp_pkg),
+                fetcher=fetch_newer,
+                runner=pip_runner,
+            )
+            self.assertTrue(ok_pip)
+            self.assertIn("via pip", msg_pip)
+            self.assertEqual(len(pip_cmds), 1)
+            self.assertIn("pip", pip_cmds[0])
+
+    def test_cli_check_update_and_update_flags(self):
+        def fetch_newer(url, timeout):
+            return json.dumps({"tag_name": "v0.3.0"})
+
+        def fake_runner(cmd, **kw):
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        rc_check = main(["--check-update"], fetcher=fetch_newer)
+        self.assertEqual(rc_check, 0)
+        rc_upd = main(["--update"], fetcher=fetch_newer, runner=fake_runner)
+        self.assertEqual(rc_upd, 0)
 
 
 if __name__ == "__main__":
